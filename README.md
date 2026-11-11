@@ -17,8 +17,12 @@ acolhimento em saúde mental, com biblioteca de conteúdos educativos e diário 
 
 ## Links
 
-- **API publicada no Render:** COLE AQUI A URL DA API NO RENDER
+- **API publicada no Render:** https://mindconnect-backend-ashz.onrender.com
 - **Vídeo de demonstração (YouTube não listado):** COLE AQUI O LINK DO VÍDEO
+
+## ATENÇÃO
+O projeto conta com 2 arquivos SQL, pois foi necessário dividir a parte dos comandos **INSERT** para armazenar os dados
+na tabela correta, devido a grande quantidade de dados públicos que foram utilizados e adicionados a API.
 
 ## Tecnologias
 
