@@ -1,6 +1,6 @@
-
 package br.com.mindconnect.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class ServicoAcolhimentoSaidaDto {
@@ -18,6 +18,8 @@ public class ServicoAcolhimentoSaidaDto {
     private String descricaoServicos;
     private String fonteInformacao;
     private LocalDate dataVerificacao;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
 
     public ServicoAcolhimentoSaidaDto() {
     }
@@ -125,5 +127,20 @@ public class ServicoAcolhimentoSaidaDto {
     public void setDataVerificacao(LocalDate dataVerificacao) {
         this.dataVerificacao = dataVerificacao;
     }
-}
 
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(BigDecimal latitude) {
+        this.latitude = latitude;
+    }
+
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(BigDecimal longitude) {
+        this.longitude = longitude;
+    }
+}

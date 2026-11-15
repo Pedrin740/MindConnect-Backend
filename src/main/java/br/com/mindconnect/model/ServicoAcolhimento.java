@@ -1,6 +1,6 @@
-
 package br.com.mindconnect.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class ServicoAcolhimento {
@@ -18,6 +18,8 @@ public class ServicoAcolhimento {
     private String fonteInformacao;
     private LocalDate dataVerificacao;
     private String nomeCategoria;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
 
     public ServicoAcolhimento() {
     }
@@ -124,5 +126,21 @@ public class ServicoAcolhimento {
 
     public void setNomeCategoria(String nomeCategoria) {
         this.nomeCategoria = nomeCategoria;
+    }
+
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(BigDecimal latitude) {
+        this.latitude = latitude;
+    }
+
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(BigDecimal longitude) {
+        this.longitude = longitude;
     }
 }

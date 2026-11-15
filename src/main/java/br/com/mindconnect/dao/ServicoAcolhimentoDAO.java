@@ -1,4 +1,3 @@
-
 package br.com.mindconnect.dao;
 
 import br.com.mindconnect.model.ServicoAcolhimento;
@@ -21,7 +20,8 @@ public class ServicoAcolhimentoDAO {
             "SELECT s.ID_SERVICO, s.ID_CATEGORIA_SERVICO, c.NOME AS NOME_CATEGORIA, "
                     + "s.NOME, s.ENDERECO, s.BAIRRO, s.MUNICIPIO, s.REGIAO, "
                     + "s.TELEFONE, s.HORARIO_FUNCIONAMENTO, s.DESCRICAO_SERVICOS, "
-                    + "s.FONTE_INFORMACAO, s.DATA_VERIFICACAO "
+                    + "s.FONTE_INFORMACAO, s.DATA_VERIFICACAO, "
+                    + "s.LATITUDE, s.LONGITUDE "
                     + "FROM GS_SERVICO_ACOLHIMENTO s "
                     + "JOIN GS_CATEGORIA_SERVICO c "
                     + "ON c.ID_CATEGORIA_SERVICO = s.ID_CATEGORIA_SERVICO ";
@@ -300,6 +300,8 @@ public class ServicoAcolhimentoDAO {
         servico.setHorarioFuncionamento(rs.getString("HORARIO_FUNCIONAMENTO"));
         servico.setDescricaoServicos(rs.getString("DESCRICAO_SERVICOS"));
         servico.setFonteInformacao(rs.getString("FONTE_INFORMACAO"));
+        servico.setLatitude(rs.getBigDecimal("LATITUDE"));
+        servico.setLongitude(rs.getBigDecimal("LONGITUDE"));
 
         Date verificacao = rs.getDate("DATA_VERIFICACAO");
 
