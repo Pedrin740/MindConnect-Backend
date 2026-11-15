@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.dto;
 
 import java.time.LocalDate;
@@ -5,27 +6,17 @@ import java.time.LocalDate;
 public class ServicoAcolhimentoSaidaDto {
 
     private Long idServico;
-
     private Long idCategoriaServico;
-
     private String nomeCategoria;
-
     private String nome;
-
     private String endereco;
-
     private String bairro;
-
+    private String municipio;
     private String regiao;
-
     private String telefone;
-
     private String horarioFuncionamento;
-
     private String descricaoServicos;
-
     private String fonteInformacao;
-
     private LocalDate dataVerificacao;
 
     public ServicoAcolhimentoSaidaDto() {
@@ -79,6 +70,14 @@ public class ServicoAcolhimentoSaidaDto {
         this.bairro = bairro;
     }
 
+    public String getMunicipio() {
+        return municipio;
+    }
+
+    public void setMunicipio(String municipio) {
+        this.municipio = municipio;
+    }
+
     public String getRegiao() {
         return regiao;
     }
@@ -127,3 +126,4 @@ public class ServicoAcolhimentoSaidaDto {
         this.dataVerificacao = dataVerificacao;
     }
 }
+

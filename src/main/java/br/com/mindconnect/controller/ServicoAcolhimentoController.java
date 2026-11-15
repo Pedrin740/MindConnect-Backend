@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.controller;
 
 import br.com.mindconnect.config.Acesso;
@@ -30,68 +31,148 @@ public class ServicoAcolhimentoController {
     private final ServicoAcolhimentoService servicoService;
     private final ModelMapper mapper;
 
-    public ServicoAcolhimentoController(ServicoAcolhimentoService servicoService, ModelMapper mapper) {
+    public ServicoAcolhimentoController(
+            ServicoAcolhimentoService servicoService,
+            ModelMapper mapper
+    ) {
         this.servicoService = servicoService;
         this.mapper = mapper;
     }
 
     @Acesso(Nivel.ADMINISTRADOR)
     @PostMapping
-    public ResponseEntity<ServicoAcolhimentoSaidaDto> cadastrar(@Valid @RequestBody ServicoAcolhimentoEntradaDto dto) {
-        ServicoAcolhimento criado = servicoService.cadastrar(mapper.map(dto, ServicoAcolhimento.class));
+    public ResponseEntity<ServicoAcolhimentoSaidaDto> cadastrar(
+            @Valid @RequestBody ServicoAcolhimentoEntradaDto dto
+    ) {
 
-        URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/servicos/{id}").buildAndExpand(criado.getIdServico()).toUri();
-        return ResponseEntity.created(location).body(mapper.map(criado, ServicoAcolhimentoSaidaDto.class));
+        ServicoAcolhimento criado = servicoService.cadastrar(
+                mapper.map(dto, ServicoAcolhimento.class)
+        );
+
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .path("/api/servicos/{id}")
+                .buildAndExpand(criado.getIdServico())
+                .toUri();
+
+        return ResponseEntity
+                .created(location)
+                .body(mapper.map(criado, ServicoAcolhimentoSaidaDto.class));
     }
 
-    // Filtros opcionais: /api/servicos?nome=caps&regiao=ZONA SUL&categoria=CAPS (nome ou id da categoria)
+    // Filtros opcionais: nome, município, região e categoria.
     @Acesso(Nivel.PUBLICO)
     @GetMapping
     public ResponseEntity<List<ServicoAcolhimentoSaidaDto>> listar(
             @RequestParam(name = "nome", required = false) String nome,
+            @RequestParam(name = "municipio", required = false) String municipio,
             @RequestParam(name = "regiao", required = false) String regiao,
-            @RequestParam(name = "categoria", required = false) String categoria) {
-        return ResponseEntity.ok(converter(servicoService.listar(nome, regiao, categoria)));
+            @RequestParam(name = "categoria", required = false) String categoria
+    ) {
+
+        return ResponseEntity.ok(
+                converter(
+                        servicoService.listar(
+                                nome,
+                                municipio,
+                                regiao,
+                                categoria
+                        )
+                )
+        );
+    }
+
+    @Acesso(Nivel.PUBLICO)
+    @GetMapping("/municipios")
+    public ResponseEntity<List<String>> listarMunicipios() {
+        return ResponseEntity.ok(servicoService.listarMunicipios());
     }
 
     @Acesso(Nivel.PUBLICO)
     @GetMapping("/regiao/{regiao}")
-    public ResponseEntity<List<ServicoAcolhimentoSaidaDto>> listarPorRegiao(@PathVariable("regiao") String regiao) {
-        return ResponseEntity.ok(converter(servicoService.listar(null, regiao, null)));
+    public ResponseEntity<List<ServicoAcolhimentoSaidaDto>> listarPorRegiao(
+            @PathVariable("regiao") String regiao
+    ) {
+
+        return ResponseEntity.ok(
+                converter(
+                        servicoService.listar(
+                                null,
+                                null,
+                                regiao,
+                                null
+                        )
+                )
+        );
     }
 
     @Acesso(Nivel.PUBLICO)
     @GetMapping("/categoria/{categoria}")
     public ResponseEntity<List<ServicoAcolhimentoSaidaDto>> listarPorCategoria(
-            @PathVariable("categoria") String categoria) {
-        return ResponseEntity.ok(converter(servicoService.listar(null, null, categoria)));
+            @PathVariable("categoria") String categoria
+    ) {
+
+        return ResponseEntity.ok(
+                converter(
+                        servicoService.listar(
+                                null,
+                                null,
+                                null,
+                                categoria
+                        )
+                )
+        );
     }
 
     @Acesso(Nivel.PUBLICO)
     @GetMapping("/{id}")
-    public ResponseEntity<ServicoAcolhimentoSaidaDto> buscarPorId(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(mapper.map(servicoService.buscarPorId(id), ServicoAcolhimentoSaidaDto.class));
+    public ResponseEntity<ServicoAcolhimentoSaidaDto> buscarPorId(
+            @PathVariable("id") Long id
+    ) {
+
+        return ResponseEntity.ok(
+                mapper.map(
+                        servicoService.buscarPorId(id),
+                        ServicoAcolhimentoSaidaDto.class
+                )
+        );
     }
 
     @Acesso(Nivel.ADMINISTRADOR)
     @PutMapping("/{id}")
     public ResponseEntity<ServicoAcolhimentoSaidaDto> atualizar(
-            @PathVariable("id") Long id, @Valid @RequestBody ServicoAcolhimentoEntradaDto dto) {
-        ServicoAcolhimento atualizado = servicoService.atualizar(id, mapper.map(dto, ServicoAcolhimento.class));
-        return ResponseEntity.ok(mapper.map(atualizado, ServicoAcolhimentoSaidaDto.class));
+            @PathVariable("id") Long id,
+            @Valid @RequestBody ServicoAcolhimentoEntradaDto dto
+    ) {
+
+        ServicoAcolhimento atualizado = servicoService.atualizar(
+                id,
+                mapper.map(dto, ServicoAcolhimento.class)
+        );
+
+        return ResponseEntity.ok(
+                mapper.map(atualizado, ServicoAcolhimentoSaidaDto.class)
+        );
     }
 
     @Acesso(Nivel.ADMINISTRADOR)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> excluir(@PathVariable("id") Long id) {
+    public ResponseEntity<Void> excluir(
+            @PathVariable("id") Long id
+    ) {
+
         servicoService.excluir(id);
+
         return ResponseEntity.noContent().build();
     }
 
-    private List<ServicoAcolhimentoSaidaDto> converter(List<ServicoAcolhimento> servicos) {
+    private List<ServicoAcolhimentoSaidaDto> converter(
+            List<ServicoAcolhimento> servicos
+    ) {
+
         return servicos.stream()
                 .map(s -> mapper.map(s, ServicoAcolhimentoSaidaDto.class))
                 .toList();
     }
 }
+

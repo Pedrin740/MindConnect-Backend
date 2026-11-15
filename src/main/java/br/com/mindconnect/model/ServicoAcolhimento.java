@@ -1,32 +1,22 @@
+
 package br.com.mindconnect.model;
 
 import java.time.LocalDate;
 
-// Tabela GS_SERVICO_ACOLHIMENTO (lado N do 1:N com categoria; nomeCategoria vem do JOIN)
 public class ServicoAcolhimento {
 
     private Long idServico;
-
     private Long idCategoriaServico;
-
     private String nome;
-
     private String endereco;
-
     private String bairro;
-
+    private String municipio;
     private String regiao;
-
     private String telefone;
-
     private String horarioFuncionamento;
-
     private String descricaoServicos;
-
     private String fonteInformacao;
-
     private LocalDate dataVerificacao;
-
     private String nomeCategoria;
 
     public ServicoAcolhimento() {
@@ -70,6 +60,14 @@ public class ServicoAcolhimento {
 
     public void setBairro(String bairro) {
         this.bairro = bairro;
+    }
+
+    public String getMunicipio() {
+        return municipio;
+    }
+
+    public void setMunicipio(String municipio) {
+        this.municipio = municipio;
     }
 
     public String getRegiao() {

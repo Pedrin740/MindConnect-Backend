@@ -1,12 +1,13 @@
+
 package br.com.mindconnect.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
 import java.time.LocalDate;
 
-// Dados do servico SEM a categoria (usado na rota aninhada /categorias-servico/{id}/servicos)
 public class ServicoAcolhimentoAninhadoDto {
 
     @NotBlank(message = "O nome é obrigatório")
@@ -20,12 +21,18 @@ public class ServicoAcolhimentoAninhadoDto {
     @Size(max = 100, message = "O bairro deve ter no máximo 100 caracteres")
     private String bairro;
 
+    @Size(max = 100, message = "O município deve ter no máximo 100 caracteres")
+    private String municipio;
+
     @NotBlank(message = "A região é obrigatória")
     @Size(max = 100, message = "A região deve ter no máximo 100 caracteres")
     private String regiao;
 
     @Size(max = 20, message = "O telefone deve ter no máximo 20 caracteres")
-    @Pattern(regexp = "^[0-9()\\s+-]*$", message = "O telefone deve conter apenas números, espaços, parênteses, + e -")
+    @Pattern(
+            regexp = "^[0-9()\\s+-]*$",
+            message = "O telefone deve conter apenas números, espaços, parênteses, + e -"
+    )
     private String telefone;
 
     @Size(max = 150, message = "O horário deve ter no máximo 150 caracteres")
@@ -66,6 +73,14 @@ public class ServicoAcolhimentoAninhadoDto {
 
     public void setBairro(String bairro) {
         this.bairro = bairro;
+    }
+
+    public String getMunicipio() {
+        return municipio;
+    }
+
+    public void setMunicipio(String municipio) {
+        this.municipio = municipio;
     }
 
     public String getRegiao() {
@@ -116,3 +131,4 @@ public class ServicoAcolhimentoAninhadoDto {
         this.dataVerificacao = dataVerificacao;
     }
 }
+
