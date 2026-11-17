@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.service;
 
 import br.com.mindconnect.dao.AuditoriaGeograficaDAO;
@@ -65,16 +66,8 @@ public class AuditoriaGeograficaService {
         String enderecoConsultado = montarEndereco(servico);
 
         if (enderecoConsultado.isBlank()) {
-            return resultadoBase(
-                    servico,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "SEM_ENDERECO",
-                    "O registro não possui endereço suficiente para geocodificação."
-            );
+            return resultadoBase(servico, null, null, null, null, null,
+                    "SEM_ENDERECO", "O registro não possui endereço suficiente para geocodificação.");
         }
 
         try {
@@ -82,164 +75,191 @@ public class AuditoriaGeograficaService {
             JsonNode features = resposta.path("features");
 
             if (!features.isArray() || features.isEmpty()) {
-                return resultadoBase(
-                        servico,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        "NAO_ENCONTRADO",
-                        "A Geoapify não retornou resultados para o endereço consultado."
-                );
+                return resultadoBase(servico, null, null, null, null, null,
+                        "NAO_ENCONTRADO", "A Geoapify não retornou resultados para o endereço consultado.");
             }
 
-            JsonNode melhor = features.get(0).path("properties");
+            CandidatoGeografico melhorCandidato = null;
+            CandidatoGeografico melhorRejeitado = null;
+            String motivoRejeicao = "Nenhum resultado retornado passou pelas validações geográficas.";
 
-            BigDecimal latitude = GeoapifyClient.decimal(melhor, "lat");
-            BigDecimal longitude = GeoapifyClient.decimal(melhor, "lon");
+            // Avalia todos os resultados retornados.
+            for (JsonNode feature : features) {
+                JsonNode propriedades = feature.path("properties");
 
-            String enderecoEncontrado = texto(melhor, "formatted");
-            String municipioEncontrado = texto(melhor, "city");
-            String cepEncontrado = texto(melhor, "postcode");
+                BigDecimal latitude = GeoapifyClient.decimal(propriedades, "lat");
+                BigDecimal longitude = GeoapifyClient.decimal(propriedades, "lon");
 
-            double confianca = melhor.path("rank").path("confidence").asDouble(0.0);
+                String enderecoEncontrado = texto(propriedades, "formatted");
+                String municipioEncontrado = texto(propriedades, "city");
+                String cepEncontrado = texto(propriedades, "postcode");
 
-            if (latitude == null || longitude == null
-                    || !"br".equalsIgnoreCase(texto(melhor, "country_code"))) {
+                double confianca = propriedades.path("rank")
+                        .path("confidence")
+                        .asDouble(0.0);
 
-                return resultadoBase(
-                        servico,
+                CandidatoGeografico candidato = new CandidatoGeografico(
+                        latitude,
+                        longitude,
                         enderecoEncontrado,
                         municipioEncontrado,
                         cepEncontrado,
-                        latitude,
-                        longitude,
+                        confianca
+                );
+
+                String motivo = validarCandidato(servico, propriedades, candidato);
+
+                if (motivo == null) {
+                    if (melhorCandidato == null
+                            || candidato.confianca() > melhorCandidato.confianca()) {
+                        melhorCandidato = candidato;
+                    }
+                } else if (melhorRejeitado == null
+                        || candidato.confianca() > melhorRejeitado.confianca()) {
+                    melhorRejeitado = candidato;
+                    motivoRejeicao = motivo;
+                }
+            }
+
+            if (melhorCandidato == null) {
+                if (melhorRejeitado == null) {
+                    return resultadoBase(servico, null, null, null, null, null,
+                            "RESULTADO_AMBIGUO", motivoRejeicao);
+                }
+
+                return resultadoBase(
+                        servico,
+                        melhorRejeitado.endereco(),
+                        melhorRejeitado.municipio(),
+                        melhorRejeitado.cep(),
+                        melhorRejeitado.latitude(),
+                        melhorRejeitado.longitude(),
                         "RESULTADO_AMBIGUO",
-                        "O resultado não possui coordenadas válidas ou não pertence ao Brasil."
+                        motivoRejeicao
                 );
             }
 
-            if (!municipioCompativel(servico.municipio(), municipioEncontrado)) {
-                return resultadoBase(
-                        servico,
-                        enderecoEncontrado,
-                        municipioEncontrado,
-                        cepEncontrado,
-                        latitude,
-                        longitude,
-                        "RESULTADO_AMBIGUO",
-                        "O município retornado não corresponde ao município cadastrado."
-                );
-            }
-
-            if (cepPreenchido(servico.cep()) && cepPreenchido(cepEncontrado)
-                    && !somenteDigitos(servico.cep()).equals(somenteDigitos(cepEncontrado))) {
-
-                return resultadoBase(
-                        servico,
-                        enderecoEncontrado,
-                        municipioEncontrado,
-                        cepEncontrado,
-                        latitude,
-                        longitude,
-                        "RESULTADO_AMBIGUO",
-                        "O CEP retornado é diferente do CEP cadastrado."
-                );
-            }
-
-            if (confianca < CONFIANCA_MINIMA) {
-                return resultadoBase(
-                        servico,
-                        enderecoEncontrado,
-                        municipioEncontrado,
-                        cepEncontrado,
-                        latitude,
-                        longitude,
-                        "RESULTADO_AMBIGUO",
-                        "A confiança informada pela geocodificação é baixa."
-                );
-            }
-
-            if (servico.latitudeAtual() == null || servico.longitudeAtual() == null) {
-                return resultadoBase(
-                        servico,
-                        enderecoEncontrado,
-                        municipioEncontrado,
-                        cepEncontrado,
-                        latitude,
-                        longitude,
-                        "SEM_COORDENADAS",
-                        "Foi encontrada uma referência geográfica, mas o registro não possui coordenadas atuais."
-                );
-            }
-
-            double distancia = distanciaMetros(
-                    servico.latitudeAtual().doubleValue(),
-                    servico.longitudeAtual().doubleValue(),
-                    latitude.doubleValue(),
-                    longitude.doubleValue()
-            );
-
-            String classificacao;
-            String justificativa;
-
-            if (distancia <= DISTANCIA_COMPATIVEL_METROS) {
-                classificacao = "COMPATIVEL";
-                justificativa = "As coordenadas atuais estão a até 150 metros da referência encontrada.";
-
-            } else if (distancia >= DISTANCIA_DIVERGENTE_METROS) {
-                classificacao = "DIVERGENTE";
-                justificativa = "As coordenadas atuais estão a pelo menos 500 metros da referência encontrada. A correção ainda exige validação humana.";
-
-            } else {
-                classificacao = "RESULTADO_AMBIGUO";
-                justificativa = "A diferença está entre 150 e 500 metros; é necessária conferência.";
-            }
-
-            return new ResultadoAuditoriaGeograficaDto(
-                    servico.idServico(),
-                    servico.nome(),
+            return classificarCoordenadasAtuais(
+                    servico,
                     enderecoConsultado,
-                    enderecoEncontrado,
-                    municipioEncontrado,
-                    cepEncontrado,
-                    servico.latitudeAtual(),
-                    servico.longitudeAtual(),
-                    latitude,
-                    longitude,
-                    BigDecimal.valueOf(distancia).setScale(2, RoundingMode.HALF_UP),
-                    confianca,
-                    classificacao,
-                    justificativa
+                    melhorCandidato
             );
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
 
-            return resultadoBase(
-                    servico,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "ERRO_CONSULTA",
-                    "A consulta foi interrompida."
-            );
+            return resultadoBase(servico, null, null, null, null, null,
+                    "ERRO_CONSULTA", "A consulta foi interrompida.");
 
         } catch (IOException | RuntimeException e) {
-            return resultadoBase(
-                    servico,
+            return resultadoBase(servico, null, null, null, null, null,
+                    "ERRO_CONSULTA", "Falha ao consultar a Geoapify: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Retorna null quando o candidato passa por todas as validações.
+     */
+    private String validarCandidato(
+            ServicoGeograficoDto servico,
+            JsonNode propriedades,
+            CandidatoGeografico candidato
+    ) {
+        if (candidato.latitude() == null || candidato.longitude() == null
+                || candidato.latitude().compareTo(BigDecimal.valueOf(-90)) < 0
+                || candidato.latitude().compareTo(BigDecimal.valueOf(90)) > 0
+                || candidato.longitude().compareTo(BigDecimal.valueOf(-180)) < 0
+                || candidato.longitude().compareTo(BigDecimal.valueOf(180)) > 0) {
+
+            return "O resultado não possui coordenadas válidas.";
+        }
+
+        if (!"br".equalsIgnoreCase(texto(propriedades, "country_code"))) {
+            return "O resultado retornado não pertence ao Brasil.";
+        }
+
+        if (!municipioCompativel(servico.municipio(), candidato.municipio())) {
+            return "O município retornado não corresponde ao município cadastrado.";
+        }
+
+        if (cepPreenchido(servico.cep())
+                && cepPreenchido(candidato.cep())
+                && !somenteDigitos(servico.cep())
+                .equals(somenteDigitos(candidato.cep()))) {
+
+            return "O CEP retornado é diferente do CEP cadastrado.";
+        }
+
+        if (candidato.confianca() < CONFIANCA_MINIMA) {
+            return "A confiança informada pela geocodificação é inferior a 0,75.";
+        }
+
+        return null;
+    }
+
+    private ResultadoAuditoriaGeograficaDto classificarCoordenadasAtuais(
+            ServicoGeograficoDto servico,
+            String enderecoConsultado,
+            CandidatoGeografico candidato
+    ) {
+        if (servico.latitudeAtual() == null || servico.longitudeAtual() == null) {
+            return new ResultadoAuditoriaGeograficaDto(
+                    servico.idServico(),
+                    servico.nome(),
+                    enderecoConsultado,
+                    candidato.endereco(),
+                    candidato.municipio(),
+                    candidato.cep(),
+                    servico.latitudeAtual(),
+                    servico.longitudeAtual(),
+                    candidato.latitude(),
+                    candidato.longitude(),
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "ERRO_CONSULTA",
-                    "Falha ao consultar a Geoapify: " + e.getMessage()
+                    candidato.confianca(),
+                    "SEM_COORDENADAS",
+                    "Foi encontrada uma referência geográfica validada, mas o registro não possui coordenadas atuais. A inclusão ainda exige conferência humana."
             );
         }
+
+        double distancia = distanciaMetros(
+                servico.latitudeAtual().doubleValue(),
+                servico.longitudeAtual().doubleValue(),
+                candidato.latitude().doubleValue(),
+                candidato.longitude().doubleValue()
+        );
+
+        String classificacao;
+        String justificativa;
+
+        if (distancia <= DISTANCIA_COMPATIVEL_METROS) {
+            classificacao = "COMPATIVEL";
+            justificativa = "As coordenadas atuais estão a até 150 metros da referência encontrada.";
+
+        } else if (distancia >= DISTANCIA_DIVERGENTE_METROS) {
+            classificacao = "DIVERGENTE";
+            justificativa = "As coordenadas atuais estão a pelo menos 500 metros da referência encontrada. A correção ainda exige validação humana.";
+
+        } else {
+            classificacao = "RESULTADO_AMBIGUO";
+            justificativa = "A diferença está entre 150 e 500 metros; é necessária conferência.";
+        }
+
+        return new ResultadoAuditoriaGeograficaDto(
+                servico.idServico(),
+                servico.nome(),
+                enderecoConsultado,
+                candidato.endereco(),
+                candidato.municipio(),
+                candidato.cep(),
+                servico.latitudeAtual(),
+                servico.longitudeAtual(),
+                candidato.latitude(),
+                candidato.longitude(),
+                BigDecimal.valueOf(distancia).setScale(2, RoundingMode.HALF_UP),
+                candidato.confianca(),
+                classificacao,
+                justificativa
+        );
     }
 
     private ResultadoAuditoriaGeograficaDto resultadoBase(
@@ -321,22 +341,44 @@ public class AuditoriaGeograficaService {
                 : valor.asText();
     }
 
-    private long contar(List<ResultadoAuditoriaGeograficaDto> resultados, String classificacao) {
+    private long contar(
+            List<ResultadoAuditoriaGeograficaDto> resultados,
+            String classificacao
+    ) {
         return resultados.stream()
                 .filter(r -> classificacao.equals(r.classificacao()))
                 .count();
     }
 
-    private double distanciaMetros(double lat1, double lon1, double lat2, double lon2) {
+    private double distanciaMetros(
+            double lat1,
+            double lon1,
+            double lat2,
+            double lon2
+    ) {
         double raioTerra = 6_371_000.0;
 
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
 
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2))
                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
-        return raioTerra * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return raioTerra * 2 * Math.atan2(
+                Math.sqrt(a),
+                Math.sqrt(1 - a)
+        );
+    }
+
+    private record CandidatoGeografico(
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String endereco,
+            String municipio,
+            String cep,
+            double confianca
+    ) {
     }
 }
