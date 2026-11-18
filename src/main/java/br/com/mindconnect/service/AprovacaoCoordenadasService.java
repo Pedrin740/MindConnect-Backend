@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.service;
 
 import br.com.mindconnect.dao.AuditoriaGeograficaDAO;
@@ -166,26 +167,21 @@ public class AprovacaoCoordenadasService {
                         && servico.longitudeAtual() != null;
 
         if (bancoTemCoordenadas) {
-            if (resultado.distanciaMetros() == null
-                    || resultado.distanciaMetros().doubleValue()
-                    <= TOLERANCIA_DIVERGENCIA_CNES) {
+            if (resultado.distanciaMetros() == null) {
                 throw new RegraNegocioException(
-                        "A comparação CNES não identificou uma divergência "
-                                + "de coordenadas que justifique a correção."
+                        "Não foi possível calcular a divergência entre "
+                                + "as coordenadas do Oracle e do CNES."
                 );
             }
 
-            double distanciaAtual = resultado.distanciaMetros().doubleValue();
+            double distancia = resultado.distanciaMetros().doubleValue();
 
-            if (distanciaAtual > DIVERGENCIA_MAXIMA_CNES) {
+            validarLimiteDivergenciaCnes(distancia);
+
+            if (distancia <= TOLERANCIA_DIVERGENCIA_CNES) {
                 throw new RegraNegocioException(
-                        "A aprovação foi bloqueada porque a divergência "
-                                + "entre as coordenadas atuais e a referência "
-                                + "CNES é superior a 5 km. Distância encontrada: "
-                                + Math.round(distanciaAtual)
-                                + " metros. É necessária uma verificação "
-                                + "independente do endereço e da localização "
-                                + "antes de qualquer atualização."
+                        "A comparação CNES não identificou uma divergência "
+                                + "de coordenadas que justifique a correção."
                 );
             }
         }
@@ -213,17 +209,23 @@ public class AprovacaoCoordenadasService {
                 candidato.longitude().doubleValue()
         );
 
+        validarLimiteDivergenciaCnes(distanciaAtual);
+
         if (distanciaAtual <= TOLERANCIA_DIVERGENCIA_CNES) {
             throw new RegraNegocioException(
                     "As coordenadas atuais já estão compatíveis com "
                             + "a referência CNES. Nenhuma atualização é necessária."
             );
         }
+    }
 
-        if (distanciaAtual > DIVERGENCIA_MAXIMA_CNES) {
+    private void validarLimiteDivergenciaCnes(double distancia) {
+        if (distancia > DIVERGENCIA_MAXIMA_CNES) {
             throw new RegraNegocioException(
-                    "A aprovação CNES foi bloqueada. A divergência "
-                            + "ultrapassa 5 km e exige verificação independente."
+                    "A divergência entre as coordenadas do Oracle e do CNES "
+                            + "ultrapassa o limite de 5 km. A aprovação foi "
+                            + "bloqueada por segurança. É necessária uma "
+                            + "conferência independente da localização."
             );
         }
     }
