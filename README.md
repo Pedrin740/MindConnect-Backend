@@ -1,3 +1,4 @@
+
 # Mind Connect — Back-end (API RESTful)
 
 **Global Solution 2026/2 · CitizenTech · Domain Driven Design using Java · FIAP**
@@ -44,7 +45,7 @@ Relacionamentos 1:N: **CategoriaServico → ServicoAcolhimento** e **Usuario →
 2. Defina as variáveis de ambiente (os valores **não** ficam no código):
 
    | Variável | Obrigatória | Descrição |
-   |---|---|---|
+      |---|---|---|
    | `DB_URL` | sim | URL JDBC do Oracle, ex.: `jdbc:oracle:thin:@HOST:1521:SID` |
    | `DB_USERNAME` | sim | usuário do banco |
    | `DB_PASSWORD` | sim | senha do banco |
@@ -101,10 +102,52 @@ Cada recurso segue o padrão: `POST` (201 + `Location`), `GET` lista (200), `GET
 | Conteúdos | `/api/conteudos` | `?busca=&status=&categoria=`, `/categoria/{categoria}` |
 | Diário de bem-estar | `/api/bem-estar` | `?idUsuario=`, `/historico?idUsuario=` |
 | Administradores | `/api/administradores` | — |
+| Auditoria geográfica | `/api/servicos/auditoria-geografica` | `POST` para executar auditoria · `PUT /api/servicos/auditoria-geografica/{idServico}/coordenadas` para aprovar coordenadas validadas (somente administrador) |
 
 Erros sempre em JSON padronizado (sem stack trace nem SQL): `400` validação, `401` login incorreto,
 `404` não encontrado, `405` método não suportado, `409` regra de negócio / remoção de registro com filhos,
 `500` erro inesperado (mensagem genérica).
+
+### Auditoria geográfica e aprovação de coordenadas
+
+A auditoria geográfica permite que um administrador analise os endereços e as coordenadas cadastradas nos serviços de acolhimento. A API consulta a Geoapify, verifica os resultados encontrados e classifica os registros para identificar coordenadas compatíveis, divergentes ou ausentes. A execução da auditoria não altera os dados do banco.
+
+**Executar a auditoria**
+
+```http
+POST /api/servicos/auditoria-geografica?pagina=0&limite=20
+Authorization: Bearer <token-do-administrador>
+```
+
+- `pagina`: página da consulta, começando em `0` (padrão: `0`).
+- `limite`: quantidade de serviços analisados por execução (padrão: `20`; máximo: `50`).
+- Retorna um relatório com a classificação dos registros e, quando disponível, as coordenadas sugeridas pela geocodificação.
+
+**Aprovar e atualizar as coordenadas de um serviço**
+
+```http
+PUT /api/servicos/auditoria-geografica/{idServico}/coordenadas
+Authorization: Bearer <token-do-administrador>
+Content-Type: application/json
+
+{
+  "latitude": -23.550520,
+  "longitude": -46.633308
+}
+```
+
+O `{idServico}` identifica o serviço de acolhimento que terá as coordenadas atualizadas. O corpo deve conter `latitude` (entre `-90` e `90`) e `longitude` (entre `-180` e `180`). A operação é restrita a administradores e deve validar novamente o endereço antes de gravar as coordenadas.
+
+Respostas esperadas:
+
+- `204 No Content`: coordenadas atualizadas com sucesso.
+- `400 Bad Request`: coordenadas inválidas ou falha nas regras de validação.
+- `401 Unauthorized`: token ausente, inválido ou expirado.
+- `403 Forbidden`: usuário sem permissão de administrador.
+- `404 Not Found`: serviço não encontrado.
+- `409 Conflict`: coordenadas do registro foram alteradas desde a consulta ou a atualização não pode ser realizada com segurança.
+
+A aprovação não deve ser usada para inserir coordenadas arbitrárias: os valores enviados precisam corresponder à referência geográfica validada para o endereço cadastrado. A auditoria, por si só, não atualiza automaticamente os registros.
 
 ### Exemplo rápido
 

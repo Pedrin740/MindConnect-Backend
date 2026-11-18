@@ -2,10 +2,16 @@ package br.com.mindconnect.controller;
 
 import br.com.mindconnect.config.Acesso;
 import br.com.mindconnect.config.Nivel;
+import br.com.mindconnect.geografia.AprovacaoCoordenadasRequest;
 import br.com.mindconnect.geografia.RelatorioAuditoriaGeograficaDto;
+import br.com.mindconnect.service.AprovacaoCoordenadasService;
 import br.com.mindconnect.service.AuditoriaGeograficaService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,9 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuditoriaGeograficaController {
 
     private final AuditoriaGeograficaService auditoriaService;
+    private final AprovacaoCoordenadasService aprovacaoService;
 
-    public AuditoriaGeograficaController(AuditoriaGeograficaService auditoriaService) {
+    public AuditoriaGeograficaController(
+            AuditoriaGeograficaService auditoriaService,
+            AprovacaoCoordenadasService aprovacaoService
+    ) {
         this.auditoriaService = auditoriaService;
+        this.aprovacaoService = aprovacaoService;
     }
 
     @Acesso(Nivel.ADMINISTRADOR)
@@ -27,5 +38,15 @@ public class AuditoriaGeograficaController {
             @RequestParam(defaultValue = "20") int limite
     ) {
         return ResponseEntity.ok(auditoriaService.auditar(pagina, limite));
+    }
+
+    @Acesso(Nivel.ADMINISTRADOR)
+    @PutMapping("/{idServico}/coordenadas")
+    public ResponseEntity<Void> aprovarCoordenadas(
+            @PathVariable Long idServico,
+            @Valid @RequestBody AprovacaoCoordenadasRequest request
+    ) {
+        aprovacaoService.aprovar(idServico, request);
+        return ResponseEntity.noContent().build();
     }
 }
