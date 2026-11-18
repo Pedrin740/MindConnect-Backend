@@ -1,4 +1,3 @@
-
 # Mind Connect — Back-end (API RESTful)
 
 **Global Solution 2026/2 · CitizenTech · Domain Driven Design using Java · FIAP**
@@ -33,7 +32,7 @@ Oracle (FIAP) · Bean Validation · ModelMapper · Docker (multi-stage) · Rende
 
 ## Domínio
 
-8 entidades (9 tabelas): `Usuario`, `CategoriaServico`, `ServicoAcolhimento`, `CategoriaConteudo`, `Conteudo`
+9 entidades (10 tabelas): `Usuario`, `Contato`, `CategoriaServico`, `ServicoAcolhimento`, `CategoriaConteudo`, `Conteudo`
 (com a tabela de associação `GS_CONTEUDO_CATEGORIA`), `RegistroBemEstar`, `Administrador` e `Favorito`
 (conteúdos favoritados pelos usuários, chave composta).
 
@@ -45,7 +44,7 @@ Relacionamentos 1:N: **CategoriaServico → ServicoAcolhimento** e **Usuario →
 2. Defina as variáveis de ambiente (os valores **não** ficam no código):
 
    | Variável | Obrigatória | Descrição |
-      |---|---|---|
+         |---|---|---|
    | `DB_URL` | sim | URL JDBC do Oracle, ex.: `jdbc:oracle:thin:@HOST:1521:SID` |
    | `DB_USERNAME` | sim | usuário do banco |
    | `DB_PASSWORD` | sim | senha do banco |
@@ -96,6 +95,7 @@ Cada recurso segue o padrão: `POST` (201 + `Location`), `GET` lista (200), `GET
 |---|---|---|
 | Usuários | `/api/usuarios` | `GET/POST /api/usuarios/{id}/bem-estar` · `GET/POST /api/usuarios/{id}/favoritos` · `GET/DELETE /api/usuarios/{id}/favoritos/{idConteudo}` |
 | Login | — | `POST /api/auth/login` |
+| Contatos | `/api/contatos` | `POST` para registrar uma mensagem de contato (público) |
 | Categorias de serviço | `/api/categorias-servico` | `GET/POST /api/categorias-servico/{id}/servicos` |
 | Serviços de acolhimento | `/api/servicos` | `?nome=&regiao=&categoria=`, `/regiao/{regiao}`, `/categoria/{categoria}` |
 | Categorias de conteúdo | `/api/categorias-conteudo` | — |
@@ -149,6 +149,41 @@ Respostas esperadas:
 
 A aprovação não deve ser usada para inserir coordenadas arbitrárias: os valores enviados precisam corresponder à referência geográfica validada para o endereço cadastrado. A auditoria, por si só, não atualiza automaticamente os registros.
 
+### Formulário de contato
+
+O endpoint público `POST /api/contatos` recebe as mensagens enviadas pelo formulário de contato e as armazena na tabela `GS_CONTATO` do Oracle. Não exige token de autenticação. Nesta etapa, o sistema registra a mensagem para atendimento; não realiza envio automático de e-mail.
+
+**Cadastrar uma mensagem**
+
+```http
+POST /api/contatos
+Content-Type: application/json
+
+{
+  "nome": "Maria Silva",
+  "email": "maria@example.com",
+  "motivo": "Dúvida",
+  "mensagem": "Gostaria de obter mais informações sobre a plataforma."
+}
+```
+
+Campos recebidos:
+
+- `nome`: obrigatório, de 3 a 100 caracteres.
+- `email`: obrigatório, deve possuir formato de e-mail e até 150 caracteres.
+- `motivo`: obrigatório, até 100 caracteres.
+- `mensagem`: obrigatória, de 10 a 1000 caracteres.
+
+A API normaliza espaços nas extremidades dos campos e armazena o e-mail em letras minúsculas. A data de envio é preenchida pelo banco (`SYSTIMESTAMP`) e o status inicial é `PENDENTE`.
+
+Respostas esperadas:
+
+- `201 Created`: mensagem registrada; retorna os dados do contato, o identificador e o status. O cabeçalho `Location` aponta para `/api/contatos/{id}`.
+- `400 Bad Request`: campos ausentes ou inválidos.
+- `500 Internal Server Error`: falha inesperada ao registrar a mensagem.
+
+A tabela `GS_CONTATO` contém `ID_CONTATO`, `NOME`, `EMAIL`, `MOTIVO`, `MENSAGEM`, `DATA_ENVIO` e `STATUS`. Os status permitidos são `PENDENTE`, `EM_ANDAMENTO`, `RESPONDIDO` e `ENCERRADO`.
+
 ### Exemplo rápido
 
 ```http
@@ -185,7 +220,7 @@ por um id enviado pelo cliente. A permissão de administrador é conferida no ba
 
 | Quem | O que pode |
 |---|---|
-| **Público** (sem login) | Cadastrar-se (`POST /api/usuarios`), fazer login e consultar serviços, categorias de serviço, conteúdos e categorias de conteúdo (`GET`) |
+| **Público** (sem login) | Cadastrar-se (`POST /api/usuarios`), fazer login, enviar mensagem de contato (`POST /api/contatos`) e consultar serviços, categorias de serviço, conteúdos e categorias de conteúdo (`GET`) |
 | **Administrador** | Tudo do público + cadastrar, alterar e excluir serviços, conteúdos, categorias e administradores; listar contas (`GET /api/usuarios`) |
 | **Usuário comum (logado)** | Seus próprios dados: conta, diário de bem-estar e favoritos |
 
@@ -206,6 +241,7 @@ com a senha informada. Depois, o administrador pode cadastrar outros administrad
 ## Regras de negócio
 
 - E-mail de usuário único (409).
+- O formulário de contato exige nome, e-mail válido, motivo e mensagem dentro dos limites de tamanho definidos no DTO. Cada mensagem é registrada com status inicial `PENDENTE`.
 - Apenas **um registro de bem-estar por usuário por dia** (409).
 - Não pode haver dois serviços com o mesmo nome e endereço (409).
 - Não remove registro com filhos: categoria com serviços/conteúdos, usuário com registros de bem-estar, favoritos ou acesso de administrador (409).
