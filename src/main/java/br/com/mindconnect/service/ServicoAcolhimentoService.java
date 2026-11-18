@@ -1,4 +1,3 @@
-
 package br.com.mindconnect.service;
 
 import br.com.mindconnect.dao.CategoriaServicoDAO;
@@ -80,6 +79,10 @@ public class ServicoAcolhimentoService {
                 idCategoria,
                 nomeCategoria
         );
+    }
+
+    public List<ServicoAcolhimento> listarParaMapa() {
+        return servicoDAO.listarParaMapa();
     }
 
     public List<String> listarMunicipios() {

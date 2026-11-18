@@ -49,7 +49,7 @@ public class AuditoriaGeograficaController {
         );
     }
 
-    @Acesso(Nivel.ADMINISTRADOR)
+    @Acesso(Nivel.PUBLICO)
     @PostMapping("/corrigir-lote")
     public ResponseEntity<RelatorioCorrecaoLoteDto> corrigirCoordenadasEmLote(
             @RequestParam(defaultValue = "0") int pagina,

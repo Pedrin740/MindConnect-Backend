@@ -1,4 +1,3 @@
-
 package br.com.mindconnect.controller;
 
 import br.com.mindconnect.config.Acesso;
@@ -60,7 +59,7 @@ public class ServicoAcolhimentoController {
                 .body(mapper.map(criado, ServicoAcolhimentoSaidaDto.class));
     }
 
-    // Filtros opcionais: nome, município, região e categoria.
+    // Lista os serviços com filtros opcionais.
     @Acesso(Nivel.PUBLICO)
     @GetMapping
     public ResponseEntity<List<ServicoAcolhimentoSaidaDto>> listar(
@@ -79,6 +78,16 @@ public class ServicoAcolhimentoController {
                                 categoria
                         )
                 )
+        );
+    }
+
+    // Retorna somente serviços que possuem latitude e longitude.
+    @Acesso(Nivel.PUBLICO)
+    @GetMapping("/mapa")
+    public ResponseEntity<List<ServicoAcolhimentoSaidaDto>> listarParaMapa() {
+
+        return ResponseEntity.ok(
+                converter(servicoService.listarParaMapa())
         );
     }
 
@@ -175,4 +184,3 @@ public class ServicoAcolhimentoController {
                 .toList();
     }
 }
-

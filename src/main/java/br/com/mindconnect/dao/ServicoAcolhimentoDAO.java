@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.dao;
 
 import br.com.mindconnect.model.ServicoAcolhimento;
@@ -121,6 +122,33 @@ public class ServicoAcolhimentoDAO {
 
         } catch (SQLException e) {
             throw TradutorErroSql.traduzir("Erro ao listar serviços", e);
+        }
+    }
+
+    public List<ServicoAcolhimento> listarParaMapa() {
+
+        String sql = SELECT_BASE
+                + "WHERE s.LATITUDE IS NOT NULL "
+                + "AND s.LONGITUDE IS NOT NULL "
+                + "ORDER BY s.NOME";
+
+        List<ServicoAcolhimento> lista = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                lista.add(mapear(rs));
+            }
+
+            return lista;
+
+        } catch (SQLException e) {
+            throw TradutorErroSql.traduzir(
+                    "Erro ao listar serviços para o mapa",
+                    e
+            );
         }
     }
 
