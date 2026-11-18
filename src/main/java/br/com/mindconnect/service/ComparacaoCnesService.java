@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.service;
 
 import br.com.mindconnect.dao.AuditoriaGeograficaDAO;
@@ -32,6 +33,24 @@ public class ComparacaoCnesService {
     private static final String IBGE_CAPITAL = "355030";
 
     private static final double TOLERANCIA_COORDENADAS_METROS = 150.0;
+
+    /*
+     * Coordenada genérica identificada no CSV oficial.
+     *
+     * Foram encontrados 512 registros com coordenadas
+     * a até 5 metros deste ponto.
+     *
+     * Essas coordenadas não serão consideradas referências
+     * geográficas confiáveis para aprovação.
+     */
+    private static final BigDecimal LATITUDE_GENERICA =
+            new BigDecimal("-23.548");
+
+    private static final BigDecimal LONGITUDE_GENERICA =
+            new BigDecimal("-46.636");
+
+    private static final double TOLERANCIA_COORDENADA_GENERICA_METROS =
+            5.0;
 
     private final AuditoriaGeograficaDAO dao;
 
@@ -189,6 +208,35 @@ public class ComparacaoCnesService {
                     continue;
                 }
 
+                String latitudeTexto =
+                        valor(registroLinha, "LATITUDE");
+
+                String longitudeTexto =
+                        valor(registroLinha, "LONGITUDE");
+
+                BigDecimal latitude = decimalCoordenada(
+                        latitudeTexto,
+                        -90,
+                        90
+                );
+
+                BigDecimal longitude = decimalCoordenada(
+                        longitudeTexto,
+                        -180,
+                        180
+                );
+
+                /*
+                 * Impede que coordenadas genéricas sejam utilizadas
+                 * como referência oficial para corrigir o mapa.
+                 *
+                 * Ambas as coordenadas são descartadas juntas.
+                 */
+                if (coordenadasGenericas(latitude, longitude)) {
+                    latitude = null;
+                    longitude = null;
+                }
+
                 RegistroCnes registro = new RegistroCnes(
                         codigo,
                         valor(registroLinha, "NOME FANTASIA"),
@@ -196,16 +244,8 @@ public class ComparacaoCnesService {
                         valor(registroLinha, "NUMERO"),
                         valor(registroLinha, "BAIRRO"),
                         valor(registroLinha, "CEP"),
-                        decimalCoordenada(
-                                valor(registroLinha, "LATITUDE"),
-                                -90,
-                                90
-                        ),
-                        decimalCoordenada(
-                                valor(registroLinha, "LONGITUDE"),
-                                -180,
-                                180
-                        )
+                        latitude,
+                        longitude
                 );
 
                 if (registros.putIfAbsent(codigo, registro) != null) {
@@ -342,6 +382,32 @@ public class ComparacaoCnesService {
                 classificacao,
                 descricao
         );
+    }
+
+    /*
+     * Verifica se o par de coordenadas corresponde ao ponto genérico
+     * identificado no arquivo CNES.
+     *
+     * A distância é utilizada para absorver pequenas variações
+     * de casas decimais, sem descartar outras localizações.
+     */
+    private boolean coordenadasGenericas(
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+
+        if (latitude == null || longitude == null) {
+            return false;
+        }
+
+        double distancia = distanciaMetros(
+                latitude.doubleValue(),
+                longitude.doubleValue(),
+                LATITUDE_GENERICA.doubleValue(),
+                LONGITUDE_GENERICA.doubleValue()
+        );
+
+        return distancia <= TOLERANCIA_COORDENADA_GENERICA_METROS;
     }
 
     private String valor(
