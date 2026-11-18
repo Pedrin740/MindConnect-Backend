@@ -122,4 +122,36 @@ public class AuditoriaGeograficaDAO {
                 rs.getBigDecimal("LONGITUDE")
         );
     }
+
+    public List<ServicoGeograficoDto> listarServicosDaCapitalParaComparacaoCnes() {
+
+        String sql = """
+            SELECT ID_SERVICO, NOME, ENDERECO, BAIRRO,
+                   MUNICIPIO, CEP, CODIGO_CNES, LATITUDE, LONGITUDE
+            FROM GS_SERVICO_ACOLHIMENTO
+            WHERE CODIGO_IBGE_MUNICIPIO = '355030'
+              AND UF = 'SP'
+            ORDER BY ID_SERVICO
+            """;
+
+        List<ServicoGeograficoDto> resultado = new ArrayList<>();
+
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                resultado.add(mapearServico(rs));
+            }
+
+            return resultado;
+
+        } catch (SQLException e) {
+            throw TradutorErroSql.traduzir(
+                    "Erro ao consultar serviços da capital para comparação com o CNES",
+                    e
+            );
+        }
+    }
+
 }
