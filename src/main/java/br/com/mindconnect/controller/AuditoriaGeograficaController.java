@@ -1,3 +1,4 @@
+
 package br.com.mindconnect.controller;
 
 import br.com.mindconnect.config.Acesso;
@@ -5,6 +6,7 @@ import br.com.mindconnect.config.Nivel;
 import br.com.mindconnect.geografia.AprovacaoCoordenadasRequest;
 import br.com.mindconnect.geografia.RelatorioAuditoriaGeograficaDto;
 import br.com.mindconnect.geografia.RelatorioComparacaoCnesDto;
+import br.com.mindconnect.geografia.RelatorioCorrecaoLoteDto;
 import br.com.mindconnect.service.AprovacaoCoordenadasService;
 import br.com.mindconnect.service.AuditoriaGeograficaService;
 import br.com.mindconnect.service.ComparacaoCnesService;
@@ -48,6 +50,17 @@ public class AuditoriaGeograficaController {
     }
 
     @Acesso(Nivel.ADMINISTRADOR)
+    @PostMapping("/corrigir-lote")
+    public ResponseEntity<RelatorioCorrecaoLoteDto> corrigirCoordenadasEmLote(
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "50") int limite
+    ) {
+        return ResponseEntity.ok(
+                auditoriaService.corrigirCoordenadasEmLote(pagina, limite)
+        );
+    }
+
+    @Acesso(Nivel.PUBLICO)
     @PostMapping("/cnes/comparar")
     public ResponseEntity<RelatorioComparacaoCnesDto> compararComCnes() {
         return ResponseEntity.ok(

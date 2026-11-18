@@ -1,9 +1,9 @@
-
 package br.com.mindconnect.service;
 
 import br.com.mindconnect.dao.AuditoriaGeograficaDAO;
 import br.com.mindconnect.geografia.GeoapifyClient;
 import br.com.mindconnect.geografia.RelatorioAuditoriaGeograficaDto;
+import br.com.mindconnect.geografia.RelatorioCorrecaoLoteDto;
 import br.com.mindconnect.geografia.ResultadoAuditoriaGeograficaDto;
 import br.com.mindconnect.geografia.ServicoGeograficoDto;
 import tools.jackson.databind.JsonNode;
@@ -60,6 +60,129 @@ public class AuditoriaGeograficaService {
                 contar(resultados, "ERRO_CONSULTA"),
                 resultados
         );
+    }
+
+    /**
+     * Corrige coordenadas ausentes, genéricas ou claramente divergentes usando
+     * somente resultados de rua com município e CEP confirmados.
+     * Cada chamada processa uma página para respeitar os limites do geocodificador.
+     */
+    public RelatorioCorrecaoLoteDto corrigirCoordenadasEmLote(int pagina, int limite) {
+        if (pagina < 0) throw new IllegalArgumentException("A página não pode ser negativa.");
+        if (limite < 1 || limite > 50) throw new IllegalArgumentException("O limite deve estar entre 1 e 50.");
+
+        List<ServicoGeograficoDto> servicos = dao.listarParaAuditoria(pagina, limite);
+        List<RelatorioCorrecaoLoteDto.ItemCorrecaoLoteDto> itens = new ArrayList<>();
+        int atualizados = 0, jaCorretos = 0, semCorrespondencia = 0, erros = 0;
+
+        for (ServicoGeograficoDto servico : servicos) {
+            try {
+                String endereco = montarEndereco(servico);
+                if (endereco.isBlank()) {
+                    semCorrespondencia++;
+                    itens.add(item(servico, null, null, "IGNORADO", "Endereço insuficiente."));
+                    continue;
+                }
+
+                // Mantém intervalo entre consultas para reduzir respostas HTTP 429.
+                Thread.sleep(250);
+                JsonNode features = geoapifyClient.geocodificar(endereco).path("features");
+                CandidatoGeografico candidato = selecionarCandidatoDeRua(servico, features);
+                if (candidato == null) {
+                    semCorrespondencia++;
+                    itens.add(item(servico, null, null, "NAO_CORRIGIDO",
+                            "Não foi encontrado resultado de rua com município e CEP compatíveis."));
+                    continue;
+                }
+
+                boolean coordenadaAusente = servico.latitudeAtual() == null || servico.longitudeAtual() == null;
+                boolean coordenadaGenerica = coordenadaGenerica(servico.latitudeAtual(), servico.longitudeAtual());
+                double distancia = coordenadaAusente ? Double.MAX_VALUE : distanciaMetros(
+                        servico.latitudeAtual().doubleValue(), servico.longitudeAtual().doubleValue(),
+                        candidato.latitude().doubleValue(), candidato.longitude().doubleValue());
+
+                if (!coordenadaAusente && !coordenadaGenerica && distancia <= DISTANCIA_DIVERGENTE_METROS) {
+                    jaCorretos++;
+                    itens.add(item(servico, candidato.endereco(), candidato.cep(), "MANTIDO",
+                            "Coordenada atual já está próxima da referência da rua."));
+                    continue;
+                }
+
+                boolean atualizado = dao.atualizarCoordenadasSeInalteradas(
+                        servico.idServico(), servico.latitudeAtual(), servico.longitudeAtual(),
+                        candidato.latitude(), candidato.longitude());
+                if (atualizado) {
+                    atualizados++;
+                    itens.add(item(servico, candidato.endereco(), candidato.cep(), "ATUALIZADO",
+                            "Coordenada aproximada da rua gravada após validação de município, logradouro e CEP."));
+                } else {
+                    semCorrespondencia++;
+                    itens.add(item(servico, candidato.endereco(), candidato.cep(), "CONFLITO",
+                            "O registro mudou durante o processamento; nenhuma alteração foi aplicada."));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                erros++;
+                itens.add(item(servico, null, null, "ERRO", "Processamento interrompido."));
+                break;
+            } catch (IOException | RuntimeException e) {
+                erros++;
+                itens.add(item(servico, null, null, "ERRO", "Falha na consulta geográfica: " + e.getMessage()));
+            }
+        }
+
+        return new RelatorioCorrecaoLoteDto(pagina, limite, servicos.size(), atualizados,
+                jaCorretos, semCorrespondencia, erros, itens);
+    }
+
+    private CandidatoGeografico selecionarCandidatoDeRua(ServicoGeograficoDto servico, JsonNode features) {
+        if (!features.isArray()) return null;
+        String ruaCadastrada = normalizar(extrairRua(servico.endereco()));
+        String cepCadastrado = somenteDigitos(servico.cep());
+        CandidatoGeografico melhor = null;
+
+        for (JsonNode feature : features) {
+            JsonNode p = feature.path("properties");
+            String ruaEncontrada = texto(p, "street");
+            String cepEncontrado = texto(p, "postcode");
+            String municipio = texto(p, "city");
+            double confiancaRua = p.path("rank").path("confidence_street_level").asDouble(0.0);
+            BigDecimal lat = GeoapifyClient.decimal(p, "lat");
+            BigDecimal lon = GeoapifyClient.decimal(p, "lon");
+
+            if (ruaCadastrada.isBlank() || ruaEncontrada == null || ruaEncontrada.isBlank()) continue;
+            String ruaNormalizada = normalizar(ruaEncontrada);
+            if (!(ruaNormalizada.equals(ruaCadastrada)
+                    || ruaNormalizada.contains(ruaCadastrada)
+                    || ruaCadastrada.contains(ruaNormalizada))) continue;
+            if (!municipioCompativel(servico.municipio(), municipio)) continue;
+            if (cepCadastrado.length() != 8 || !cepCadastrado.equals(somenteDigitos(cepEncontrado))) continue;
+            if (confiancaRua < CONFIANCA_MINIMA) continue;
+            if (lat == null || lon == null) continue;
+            if (!"br".equalsIgnoreCase(texto(p, "country_code"))) continue;
+
+            CandidatoGeografico candidato = new CandidatoGeografico(lat, lon,
+                    texto(p, "formatted"), municipio, cepEncontrado, confiancaRua);
+            if (melhor == null || candidato.confianca() > melhor.confianca()) melhor = candidato;
+        }
+        return melhor;
+    }
+
+    private String extrairRua(String endereco) {
+        if (endereco == null) return "";
+        String rua = endereco.split(",", 2)[0].trim();
+        return rua.replaceAll("(?i)\\s+(n[ºo.]?\\s*)?\\d+[a-zA-Z]?\\s*$", "").trim();
+    }
+
+    private boolean coordenadaGenerica(BigDecimal latitude, BigDecimal longitude) {
+        if (latitude == null || longitude == null) return false;
+        return distanciaMetros(latitude.doubleValue(), longitude.doubleValue(), -23.548, -46.636) <= 5.0;
+    }
+
+    private RelatorioCorrecaoLoteDto.ItemCorrecaoLoteDto item(ServicoGeograficoDto s,
+                                                              String endereco, String cep, String classificacao, String motivo) {
+        return new RelatorioCorrecaoLoteDto.ItemCorrecaoLoteDto(
+                s.idServico(), s.nome(), endereco, cep, classificacao, motivo);
     }
 
     private ResultadoAuditoriaGeograficaDto auditarServico(ServicoGeograficoDto servico) {
