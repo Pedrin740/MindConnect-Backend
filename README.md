@@ -24,7 +24,7 @@ acolhimento em saúde mental, com biblioteca de conteúdos educativos e diário 
 ## ATENÇÃO
 
 O projeto conta com 2 arquivos SQL, pois foi necessário dividir a parte dos comandos **INSERT** para armazenar os dados
-na tabela correta, devido a grande quantidade de dados públicos que foram utilizados e adicionados a API.
+na tabela correta, devido a alta quantidade de dados públicos que foram utilizados e adicionados a API.
 
 ## Tecnologias
 
