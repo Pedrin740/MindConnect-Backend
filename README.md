@@ -19,9 +19,10 @@ acolhimento em saúde mental, com biblioteca de conteúdos educativos e diário 
 
 - **API publicada no Render:** https://mindconnect-backend-ashz.onrender.com
 - **Vídeo de demonstração (YouTube não listado):** COLE AQUI O LINK DO VÍDEO
-- **Repositório Github:**  https://github.com/Pedrin740/MindConnect-Backend
+- **Repositório Github:** https://github.com/Pedrin740/MindConnect-Backend
 
 ## ATENÇÃO
+
 O projeto conta com 2 arquivos SQL, pois foi necessário dividir a parte dos comandos **INSERT** para armazenar os dados
 na tabela correta, devido a grande quantidade de dados públicos que foram utilizados e adicionados a API.
 
@@ -44,7 +45,7 @@ Relacionamentos 1:N: **CategoriaServico → ServicoAcolhimento** e **Usuario →
 2. Defina as variáveis de ambiente (os valores **não** ficam no código):
 
    | Variável | Obrigatória | Descrição |
-         |---|---|---|
+      |---|---|---|
    | `DB_URL` | sim | URL JDBC do Oracle, ex.: `jdbc:oracle:thin:@HOST:1521:SID` |
    | `DB_USERNAME` | sim | usuário do banco |
    | `DB_PASSWORD` | sim | senha do banco |
@@ -170,11 +171,11 @@ Content-Type: application/json
 Campos recebidos:
 
 - `nome`: obrigatório, de 3 a 100 caracteres.
-- `email`: obrigatório, deve possuir formato de e-mail e até 150 caracteres.
+- `email`: obrigatório, deve possuir formato de e-mail e até 150 caracteres. A validação também verifica a estrutura do domínio: exige pelo menos dois caracteres no nome do domínio antes da extensão, extensão com 2 a 63 letras, ausência de espaços e pontos consecutivos e formato compatível com endereços como `usuario@gmail.com`.
 - `motivo`: obrigatório, até 100 caracteres.
 - `mensagem`: obrigatória, de 10 a 1000 caracteres.
 
-A API normaliza espaços nas extremidades dos campos e armazena o e-mail em letras minúsculas. A data de envio é preenchida pelo banco (`SYSTIMESTAMP`) e o status inicial é `PENDENTE`.
+A API normaliza espaços nas extremidades dos campos e armazena o e-mail em letras minúsculas. A validação do e-mail verifica a estrutura do endereço, mas não confirma a existência da caixa postal nem se ela pertence à pessoa que preencheu o formulário. A data de envio é preenchida pelo banco (`SYSTIMESTAMP`) e o status inicial é `PENDENTE`.
 
 Respostas esperadas:
 
@@ -241,7 +242,7 @@ com a senha informada. Depois, o administrador pode cadastrar outros administrad
 ## Regras de negócio
 
 - E-mail de usuário único (409).
-- O formulário de contato exige nome, e-mail válido, motivo e mensagem dentro dos limites de tamanho definidos no DTO. Cada mensagem é registrada com status inicial `PENDENTE`.
+- O formulário de contato exige nome, e-mail com formato válido (incluindo domínio com pelo menos dois caracteres antes da extensão), motivo e mensagem dentro dos limites de tamanho definidos no DTO. A validação de formato não comprova a existência da caixa postal. Cada mensagem é registrada com status inicial `PENDENTE`.
 - Apenas **um registro de bem-estar por usuário por dia** (409).
 - Não pode haver dois serviços com o mesmo nome e endereço (409).
 - Não remove registro com filhos: categoria com serviços/conteúdos, usuário com registros de bem-estar, favoritos ou acesso de administrador (409).
