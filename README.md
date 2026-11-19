@@ -18,7 +18,7 @@ acolhimento em saúde mental, com biblioteca de conteúdos educativos e diário 
 ## Links
 
 - **API publicada no Render:** https://mindconnect-backend-ashz.onrender.com
-- **Vídeo de demonstração (YouTube não listado):** COLE AQUI O LINK DO VÍDEO
+- **Vídeo de demonstração (YouTube não listado):** https://youtu.be/0WRkPZk6bOc
 - **Repositório Github:** https://github.com/Pedrin740/MindConnect-Backend
 
 ## ATENÇÃO
